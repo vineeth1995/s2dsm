@@ -41,6 +41,7 @@ static int sock = 0;
 static char *addr; 
 static char cause;
 static char* user_msg;
+static pthread_mutex_t lock;
 static struct output {
 		int state;
 		char s[4096];
@@ -81,7 +82,7 @@ fault_handler_thread(void *arg)
 		nready = poll(&pollfd, 1, -1);
 		if (nready == -1)
 			errExit("poll");
-
+		pthread_mutex_lock(&lock);
 
 		nread = read(uffd, &msg, sizeof(msg));
 		if (nread == 0) {
@@ -137,6 +138,7 @@ fault_handler_thread(void *arg)
 				cur_addr[i]='\0';
 		    }
 		}
+		pthread_mutex_unlock(&lock);
 	}
 }
 
@@ -383,7 +385,9 @@ int main(int argc, const char *argv[]) {
 					printf("%c", c);
 					l++;
 				}
-				sleep(2);
+				// sleep(2);
+				pthread_mutex_lock(&lock);
+				pthread_mutex_unlock(&lock);
 				if(msi[page]==I) {
 					if (madvise(cur_addr, page_size, MADV_DONTNEED)) {
 						errExit("fail to madvise");
@@ -400,7 +404,9 @@ int main(int argc, const char *argv[]) {
 					cur_addr = addr+(page_size*l);
 					printf("%s\n", cur_addr);
 					l++;
-					sleep(2);
+					// sleep(2);
+					pthread_mutex_lock(&lock);
+					pthread_mutex_unlock(&lock);
 					if(msi[page]==I) {
 						if (madvise(cur_addr, page_size, MADV_DONTNEED)) {
 							errExit("fail to madvise");
@@ -430,7 +436,10 @@ int main(int argc, const char *argv[]) {
 					cur_addr[i] = user_msg[i];
 					i++;
 				}
-				sleep(1);
+				cur_addr[i]='\0';
+				// sleep(1);
+				pthread_mutex_lock(&lock);
+				pthread_mutex_unlock(&lock);
 				if(msi[page]==S) {
 					struct input* send_buf = (struct input*)malloc(sizeof(struct input));
 					send_buf->page = page;
@@ -451,7 +460,9 @@ int main(int argc, const char *argv[]) {
 						i++;
 					}
 					cur_addr[i]='\0';
-					sleep(1);
+					// sleep(1);
+					pthread_mutex_lock(&lock);
+					pthread_mutex_unlock(&lock);
 					if(msi[page]==S) {
 						struct input* send_buf = (struct input*)malloc(sizeof(struct input));
 						send_buf->page = page;
